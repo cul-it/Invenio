@@ -65,7 +65,8 @@ from invenio.config import \
      CFG_SITE_URL, \
      CFG_WEBSESSION_DIFFERENTIATE_BETWEEN_GUESTS, \
      CFG_CERN_SITE, \
-     CFG_WEBSEARCH_PERMITTED_RESTRICTED_COLLECTIONS_LEVEL
+     CFG_WEBSEARCH_PERMITTED_RESTRICTED_COLLECTIONS_LEVEL, \
+     CFG_RECORD_URI
 try:
     from invenio.session import get_session
 except ImportError:
@@ -886,7 +887,7 @@ def create_adminactivities_menu(req, uid, navmenuid, ln="en"):
     # current record whenever possible
     if activities.has_key(_("Run Record Editor")) or \
            activities.has_key(_("Run Document File Manager")) and \
-           user_info['uri'].startswith('/record/'):
+           user_info['uri'].startswith('/'+ CFG_RECORD_URI +'/'):
         try:
             # Get record ID and try to cast it to an int
             current_record_id = int(urlparse.urlparse(user_info['uri'])[2].split('/')[2])

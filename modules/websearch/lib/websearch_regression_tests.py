@@ -36,7 +36,8 @@ if sys.hexversion < 0x2040000:
 
 from mechanize import Browser, LinkNotFoundError
 
-from invenio.config import CFG_SITE_URL, CFG_SITE_NAME, CFG_SITE_LANG
+from invenio.config import CFG_SITE_URL, CFG_SITE_NAME, CFG_SITE_LANG, \
+    CFG_RECORD_URI
 from invenio.testutils import make_test_suite, \
                               run_test_suite, \
                               make_url, make_surl, test_web_page_content, \
@@ -87,7 +88,7 @@ class WebSearchWebPagesAvailabilityTest(unittest.TestCase):
     def test_search_detailed_record_pages_availability(self):
         """websearch - availability of search detailed record pages"""
 
-        baseurl = CFG_SITE_URL + '/record/'
+        baseurl = CFG_SITE_URL + '/'+ CFG_RECORD_URI +'/'
 
         _exports = ['', '1', '1/', '1/files', '1/files/']
 
@@ -195,9 +196,9 @@ class WebSearchTestLegacyURLs(unittest.TestCase):
         check(make_url('/search.py', p='nuclear', ln='en') + 'as=1',
               make_url('/search', p='nuclear', ln='en') + 'as=1')
 
-        # direct recid searches are redirected to /record
+        # direct recid searches are redirected to /CFG_RECORD_URI
         check(make_url('/search.py', recid=1, ln='es'),
-              make_url('/record/1', ln='es'))
+              make_url('/%s/1' % CFG_RECORD_URI, ln='es'))
 
     def test_legacy_search_help_link(self):
         """websearch - legacy Search Help page link"""
@@ -218,7 +219,7 @@ class WebSearchTestLegacyURLs(unittest.TestCase):
                                                expected_text="Search Guide"))
 
 class WebSearchTestRecord(unittest.TestCase):
-    """ Check the interface of the /record results """
+    """ Check the interface of the /CFG_RECORD_URI results """
 
     def test_format_links(self):
         """ websearch - check format links for records """
@@ -227,13 +228,13 @@ class WebSearchTestRecord(unittest.TestCase):
 
         # We open the record in all known HTML formats
         for hformat in ('hd', 'hx', 'hm'):
-            browser.open(make_url('/record/1', of=hformat))
+            browser.open(make_url('/%s/1' % CFG_RECORD_URI, of=hformat))
 
             if hformat == 'hd':
                 # hd format should have a link to the following
                 # formats
                 for oformat in ('hx', 'hm', 'xm', 'xd'):
-                    target = make_url('/record/1/export/%s?ln=en' % oformat)
+                    target = make_url('/%s/1/export/%s?ln=en' % (CFG_RECORD_URI, oformat))
                     try:
                         browser.find_link(url=target)
                     except LinkNotFoundError:
@@ -241,7 +242,7 @@ class WebSearchTestRecord(unittest.TestCase):
             else:
                 # non-hd HTML formats should have a link back to
                 # the main detailed record
-                target = make_url('/record/1')
+                target = make_url('/%s/1' % CFG_RECORD_URI)
                 try:
                     browser.find_link(url=target)
                 except LinkNotFoundError:
@@ -250,40 +251,40 @@ class WebSearchTestRecord(unittest.TestCase):
         return
 
     def test_exported_formats(self):
-        """ websearch - check formats exported through /record/1/export/ URLs"""
+        """ websearch - check formats exported through /CFG_RECORD_URI/1/export/ URLs"""
 
         browser = Browser()
 
         self.assertEqual([],
-                         test_web_page_content(make_url('/record/1/export/hm'),
+                         test_web_page_content(make_url('/%s/1/export/hm' % CFG_RECORD_URI),
                                                expected_text='245__ $$aALEPH experiment'))
         self.assertEqual([],
-                         test_web_page_content(make_url('/record/1/export/hd'),
+                         test_web_page_content(make_url('/%s/1/export/hd' % CFG_RECORD_URI),
                                                expected_text='<strong>ALEPH experiment'))
         self.assertEqual([],
-                         test_web_page_content(make_url('/record/1/export/xm'),
+                         test_web_page_content(make_url('/%s/1/export/xm' % CFG_RECORD_URI),
                                                expected_text='<subfield code="a">ALEPH experiment'))
         self.assertEqual([],
-                         test_web_page_content(make_url('/record/1/export/xd'),
+                         test_web_page_content(make_url('/%s/1/export/xd' % CFG_RECORD_URI),
                                                expected_text='<dc:title>ALEPH experiment'))
         self.assertEqual([],
-                         test_web_page_content(make_url('/record/1/export/hs'),
-                                               expected_text='<a href="/record/1?ln=%s">ALEPH experiment' % \
-                                               CFG_SITE_LANG))
+                         test_web_page_content(make_url('/%s/1/export/hs' % CFG_RECORD_URI),
+                                               expected_text='<a href="/%s/1?ln=%s">ALEPH experiment' % \
+                                               (CFG_RECORD_URI, CFG_SITE_LANG)))
         self.assertEqual([],
-                         test_web_page_content(make_url('/record/1/export/hx'),
+                         test_web_page_content(make_url('/%s/1/export/hx' % CFG_RECORD_URI),
                                                expected_text='title        = "ALEPH experiment'))
         self.assertEqual([],
-                         test_web_page_content(make_url('/record/1/export/t?ot=245'),
+                         test_web_page_content(make_url('/%s/1/export/t?ot=245' % CFG_RECORD_URI),
                                                expected_text='245__ $$aALEPH experiment'))
         self.assertNotEqual([],
-                         test_web_page_content(make_url('/record/1/export/t?ot=245'),
+                         test_web_page_content(make_url('/%s/1/export/t?ot=245' % CFG_RECORD_URI),
                                                expected_text='001__'))
         self.assertEqual([],
-                         test_web_page_content(make_url('/record/1/export/h?ot=245'),
+                         test_web_page_content(make_url('/%s/1/export/h?ot=245' % CFG_RECORD_URI),
                                                expected_text='245__ $$aALEPH experiment'))
         self.assertNotEqual([],
-                         test_web_page_content(make_url('/record/1/export/h?ot=245'),
+                         test_web_page_content(make_url('/%s/1/export/h?ot=245' % CFG_RECORD_URI),
                                                expected_text='001__'))
         return
 
@@ -373,7 +374,7 @@ class WebSearchTestCollections(unittest.TestCase):
                 if not path:
                     continue
 
-                if path[0] == 'record':
+                if path[0] == CFG_RECORD_URI:
                     records.add(int(path[1]))
                     continue
 
@@ -388,7 +389,7 @@ class WebSearchTestCollections(unittest.TestCase):
 
             return records
 
-        # We must have 10 links to the corresponding /records
+        # We must have 10 links to the corresponding /CFG_RECORD_URI
         found = harvest()
         self.failUnlessEqual(len(found), 10)
 
@@ -993,7 +994,7 @@ class WebSearchRestrictedCollectionTest(unittest.TestCase):
     def test_restricted_detailed_record_page_as_anonymous_guest(self):
         """websearch - restricted detailed record page not accessible to guests"""
         browser = Browser()
-        browser.open(CFG_SITE_URL + '/record/35')
+        browser.open(CFG_SITE_URL + '/%s/35' % CFG_RECORD_URI)
         if browser.response().read().find("You can use your nickname or your email address to login.") > -1:
             pass
         else:
@@ -1008,7 +1009,7 @@ class WebSearchRestrictedCollectionTest(unittest.TestCase):
         browser['p_un'] = 'jekyll'
         browser['p_pw'] = 'j123ekyll'
         browser.submit()
-        browser.open(CFG_SITE_URL + '/record/35')
+        browser.open(CFG_SITE_URL + '/%s/35' % CFG_RECORD_URI)
         # Dr. Jekyll should be able to connect
         # (add the pw to the whole CFG_SITE_URL because we shall be
         # redirected to '/reordrestricted/'):
@@ -1025,7 +1026,7 @@ class WebSearchRestrictedCollectionTest(unittest.TestCase):
         browser['p_un'] = 'hyde'
         browser['p_pw'] = 'h123yde'
         browser.submit()
-        browser.open(CFG_SITE_URL + '/record/35')
+        browser.open(CFG_SITE_URL + '/%s/35' % CFG_RECORD_URI)
         # Mr. Hyde should not be able to connect:
         if browser.response().read().find('You are not authorized') <= -1:
             # if we got here, things are broken:
@@ -1050,14 +1051,14 @@ class WebSearchRestrictedPicturesTest(unittest.TestCase):
 
     def test_restricted_pictures_guest(self):
         """websearch - restricted pictures not available to guest"""
-        error_messages = test_web_page_content(CFG_SITE_URL + '/record/1/files/0106015_01.jpg',
+        error_messages = test_web_page_content(CFG_SITE_URL + '/%s/1/files/0106015_01.jpg' % CFG_RECORD_URI,
                                                expected_text=['This file is restricted.  If you think you have right to access it, please authenticate yourself.'])
         if error_messages:
             self.fail(merge_error_messages(error_messages))
 
     def test_restricted_pictures_romeo(self):
         """websearch - restricted pictures available to Romeo"""
-        error_messages = test_web_page_content(CFG_SITE_URL + '/record/1/files/0106015_01.jpg',
+        error_messages = test_web_page_content(CFG_SITE_URL + '/%s/1/files/0106015_01.jpg' % CFG_RECORD_URI,
                                                username='romeo',
                                                password='r123omeo',
                                                expected_text=[],
@@ -1069,7 +1070,7 @@ class WebSearchRestrictedPicturesTest(unittest.TestCase):
     def test_restricted_pictures_hyde(self):
         """websearch - restricted pictures not available to Mr. Hyde"""
 
-        error_messages = test_web_page_content(CFG_SITE_URL + '/record/1/files/0106015_01.jpg',
+        error_messages = test_web_page_content(CFG_SITE_URL + '/%s/1/files/0106015_01.jpg' % CFG_RECORD_URI,
                                                username='hyde',
                                                password='h123yde',
                                                expected_text=['This file is restricted',
@@ -1560,7 +1561,6 @@ class WebSearchGetFieldValuesTest(unittest.TestCase):
         """websearch - get_fieldvalues() for list of recIDs"""
         self.assertEqual(get_fieldvalues([], '001___'), [])
         self.assertEqual(get_fieldvalues([], '700__a'), [])
-        self.assertEqual(get_fieldvalues('10', '001___'), ['10'])
         self.assertEqual(get_fieldvalues([10, 13], '001___'), ['10', '13'])
         self.assertEqual(get_fieldvalues([18, 13], '700__a'),
                          ['Dawson, S', 'Ellis, R K', 'Enqvist, K', 'Nanopoulos, D V'])

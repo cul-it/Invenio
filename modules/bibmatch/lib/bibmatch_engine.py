@@ -29,7 +29,7 @@ import os
 import getopt
 from tempfile import mkstemp
 
-from invenio.config import CFG_SITE_URL
+from invenio.config import CFG_SITE_URL, CFG_RECORD_URI
 from invenio.invenio_connector import InvenioConnector
 from invenio.bibrecord import create_records, record_get_field_instances, \
     record_get_field_values, record_xml_output, record_modify_controlfield, \
@@ -280,8 +280,8 @@ def match_result_output(recID_list, server_url, qrystr, matchmode="no match"):
     """
     result = []
     for recID in recID_list:
-        result.append("<!-- BibMatch-Matching-Found: %s/record/%s -->" \
-                             % (server_url, recID))
+        result.append("<!-- BibMatch-Matching-Found: %s/%s/%s -->" \
+                             % (server_url, CFG_RECORD_URI, recID))
     result.append("<!-- BibMatch-Matching-Mode: %s -->" \
                               % (matchmode, ))
     query = []

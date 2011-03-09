@@ -25,7 +25,8 @@
 
 __revision__ = "$Id$"
 
-from invenio.config import CFG_SITE_NAME, CFG_SITE_SUPPORT_EMAIL, CFG_SITE_URL, CFG_SITE_ADMIN_EMAIL
+from invenio.config import CFG_SITE_NAME, CFG_SITE_SUPPORT_EMAIL, CFG_SITE_URL, CFG_SITE_ADMIN_EMAIL, \
+    CFG_RECORD_URI
 from invenio.webuser import email_valid_p
 from invenio.websubmit_config import CFG_WEBSUBMIT_COPY_MAILS_TO_ADMIN
 from invenio.mailutils import send_email
@@ -260,10 +261,11 @@ The following item has been submitted to %(sitename)s:
 It will soon be made available and you will be able to check it at the
 following URL:
 
-  <%(siteurl)s/record/%(record-id)s>
+  <%(siteurl)s/%(CFG_RECORD_URI)s/%(record-id)s>
 
 Please report any problems to <%(sitesupportemail)s>.
 """ % { 'siteurl' : CFG_SITE_URL,
+        'CFG_RECORD_URI' : CFG_RECORD_URI,
         'record-id' : sysno,
         'sitesupportemail' : CFG_SITE_SUPPORT_EMAIL,
       }

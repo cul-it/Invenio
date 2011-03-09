@@ -60,7 +60,8 @@ from invenio.config import \
      CFG_WEBCOMMENT_ALLOW_REVIEWS, \
      CFG_WEBSEARCH_WILDCARD_LIMIT,\
      CFG_WEBSEARCH_SHOW_COMMENT_COUNT, \
-     CFG_WEBSEARCH_SHOW_REVIEW_COUNT
+     CFG_WEBSEARCH_SHOW_REVIEW_COUNT, \
+     CFG_RECORD_URI
 
 from invenio.dbquery import run_sql
 from invenio.messages import gettext_set_language
@@ -498,9 +499,9 @@ class Template:
             parameters['as'] = parameters['aas']
             del parameters['aas']
 
-        # Asking for a recid? Return a /record/<recid> URL
+        # Asking for a recid? Return a /CFG_RECORD_URI/<recid> URL
         if 'recid' in parameters:
-            target = "%s/record/%s" % (CFG_SITE_URL, parameters['recid'])
+            target = "%s/%s/%s" % (CFG_SITE_URL, CFG_RECORD_URI, parameters['recid'])
             del parameters['recid']
             target += make_canonical_urlargd(parameters, self.search_results_default_urlargd)
             return target
@@ -559,7 +560,7 @@ class Template:
         return CFG_SITE_URL + '/rss' + args
 
     def tmpl_record_page_header_content(self, req, recid, ln):
-        """ Provide extra information in the header of /record pages """
+        """ Provide extra information in the header of /CFG_RECORD_URI pages """
 
         _ = gettext_set_language(ln)
 
@@ -3375,7 +3376,7 @@ class Template:
             num_comments = get_nb_comments(recID, count_deleted=False)
             if num_comments:
                 out += '<span class="moreinfo"> - %s</span>' % \
-                        create_html_link(CFG_SITE_URL + '/record/' + str(recID)
+                        create_html_link(CFG_SITE_URL + '/'+ CFG_RECORD_URI +'/' + str(recID)
                         + '/comments?ln=%s' % ln, {}, num_comments > 1 and _("%i comments")
                         % (num_comments) or _("1 comment"),
                         {'class': "moreinfo"})
@@ -3386,7 +3387,7 @@ class Template:
             num_reviews = get_nb_reviews(recID, count_deleted=False)
             if num_reviews:
                 out += '<span class="moreinfo"> - %s</span>' % \
-                        create_html_link(CFG_SITE_URL + '/record/' + str(recID)
+                        create_html_link(CFG_SITE_URL + '/'+ CFG_RECORD_URI +'/' + str(recID)
                         + '/reviews?ln=%s' % ln, {}, num_reviews > 1 and _("%i reviews")
                         % (num_reviews) or _("1 review"), {'class': "moreinfo"})
             else:

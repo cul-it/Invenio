@@ -281,7 +281,7 @@ function initAjax(){
       dataType: 'json',
       error: onAjaxError,
       type: 'POST',
-      url: '/record/edit/'
+      url: '/'+ gRECORD_URI +'/edit/'
     }
   );
 }
@@ -353,8 +353,8 @@ function onAjaxSuccess(json, onSuccess){
     // User's session has timed out.
     gRecID = null;
     gRecIDLoading = null;
-    window.location = recID ? gSITE_URL + '/record/' + recID + '/edit/'
-      : gSITE_URL + '/record/edit/';
+    window.location = recID ? gSITE_URL + '/'+ gRECORD_URI +'/' + recID + '/edit/'
+      : gSITE_URL + '/'+ gRECORD_URI +'/edit/';
     return;
   }
   else if ($.inArray(resCode, [101, 102, 103, 104, 105, 106, 107, 108, 109])
@@ -1322,7 +1322,7 @@ function onMergeClick(event){
     // Null gRecID to avoid warning when leaving page.
     gRecID = null;
     var recID = json['recID'];
-    window.location = gSITE_URL + '/record/merge/#recid1=' + recID + '&recid2=' +
+    window.location = gSITE_URL + '/'+ gRECORD_URI +'/merge/#recid1=' + recID + '&recid2=' +
       'tmp';
   });
   event.preventDefault();
@@ -2631,8 +2631,8 @@ function onSwitchReadOnlyMode(){
 
 function getCompareClickedHandler(revisionId){
   return function(e){
-    //document.location = "/record/merge/#recid1=" + gRecID + "&recid2=" + gRecID + "." + revisionId;
-    var comparisonUrl = "/record/edit/compare_revisions?recid=" +
+    //document.location = "/"+ gRECORD_URI +"/merge/#recid1=" + gRecID + "&recid2=" + gRecID + "." + revisionId;
+    var comparisonUrl = "/"+ gRECORD_URI +"/edit/compare_revisions?recid=" +
       gRecID + "&rev1=" + gRecRev + "&rev2=" + revisionId;
     var newWindow = window.open(comparisonUrl);
     newWindow.focus();

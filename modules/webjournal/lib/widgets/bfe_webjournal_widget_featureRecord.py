@@ -45,11 +45,11 @@ def format_element(bfo):
             title = featured_record.field('245__a')
 
         lines.append('''
-        <a href="%s/record/%s?ln=%s" style="display:block">
+        <a href="%s/%s/%s?ln=%s" style="display:block">
             <img src="%s" alt="" width="100" class="phr" />
             %s
         </a>
-        ''' % (CFG_SITE_URL, recid, bfo.lang, img_url, title))
+        ''' % (CFG_SITE_URL, CFG_RECORD_URI, recid, bfo.lang, img_url, title))
 
     return  '<br/><br/>'.join(lines)
 

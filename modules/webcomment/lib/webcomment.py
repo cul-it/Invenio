@@ -44,7 +44,8 @@ from invenio.config import CFG_PREFIX, \
      CFG_WEBCOMMENT_ADMIN_NOTIFICATION_LEVEL,\
      CFG_WEBCOMMENT_NB_REPORTS_BEFORE_SEND_EMAIL_TO_ADMIN,\
      CFG_WEBCOMMENT_TIMELIMIT_PROCESSING_COMMENTS_IN_SECONDS,\
-     CFG_WEBCOMMENT_DEFAULT_MODERATOR
+     CFG_WEBCOMMENT_DEFAULT_MODERATOR, \
+     CFG_RECORD_URI
 from invenio.webmessage_mailutils import \
      email_quote_txt, \
      email_quoted_txt2html
@@ -446,7 +447,7 @@ Please go to the record page %(comment_admin_link)s to delete this message if ne
                     'review_stuff'          : CFG_WEBCOMMENT_ALLOW_REVIEWS and \
                                               "star score\t= %s\n\treview title\t= %s" % (cmt_star, cmt_title) or "",
                     'cmt_body'              : cmt_body,
-                    'comment_admin_link'    : CFG_SITE_URL + "/record/" + str(id_bibrec) + '/comments#' + str(cmt_id),
+                    'comment_admin_link'    : CFG_SITE_URL + "/"+ CFG_RECORD_URI +"/" + str(id_bibrec) + '/comments#' + str(cmt_id),
                     'user_admin_link'       : "user_admin_link" #! FIXME
                 }
 
@@ -909,7 +910,7 @@ def get_attached_files(recid, comid):
         filenames = os.listdir(base_dir)
         return [(filename, os.path.join(CFG_PREFIX, 'var', 'data', 'comments',
                                         str(recid), str(comid), filename),
-                 CFG_SITE_URL + '/record/' + str(recid) + '/comments/attachments/get/' + str(comid) + '/' + filename) \
+                 CFG_SITE_URL + '/'+ CFG_RECORD_URI +'/' + str(recid) + '/comments/attachments/get/' + str(comid) + '/' + filename) \
                 for filename in filenames]
     else:
         return []
@@ -1595,7 +1596,7 @@ AUTHOR:
 
 RECORD CONCERNED:
     Record ID   = %(recID)s
-    URL         = <%(siteurl)s/record/%(recID)s/%(comments_or_reviews)s/>
+    URL         = <%(siteurl)s/%(CFG_RECORD_URI)s/%(recID)s/%(comments_or_reviews)s/>
 %(record_details)s
 
 %(comment_or_review_caps)s:
@@ -1606,7 +1607,7 @@ RECORD CONCERNED:
 
 <--------------->
 ADMIN OPTIONS:
-To moderate the %(comment_or_review)s go to %(siteurl)s/record/%(recID)s/%(comments_or_reviews)s/display?%(arguments)s
+To moderate the %(comment_or_review)s go to %(siteurl)s/%(CFG_RECORD_URI)s/%(recID)s/%(comments_or_reviews)s/display?%(arguments)s
     ''' % \
         {   'comment_or_review'     : star_score >  0 and 'review' or 'comment',
             'comment_or_review_caps': star_score > 0 and 'REVIEW' or 'COMMENT',
@@ -1621,6 +1622,7 @@ To moderate the %(comment_or_review)s go to %(siteurl)s/record/%(recID)s/%(comme
             'review_stuff'          : star_score > 0 and review_stuff or "",
             'body'                  : body.replace('<br />','\n'),
             'siteurl'               : CFG_SITE_URL,
+            'CFG_RECORD_URI'        : CFG_RECORD_URI,
             'arguments'             : 'ln=en&do=od#%s' % comID
         }
 

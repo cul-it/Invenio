@@ -399,8 +399,8 @@ def create_excel(recIDs, req=None, ln=CFG_SITE_LANG, ot=None, ot_sep="; "):
         if req: req.write("<table>")
         for recID in recIDs:
             row = '<tr>'
-            row += '<td><a href="%(CFG_SITE_URL)s/record/%(recID)i">%(recID)i</a></td>' % \
-                   {'recID': recID, 'CFG_SITE_URL': CFG_SITE_URL}
+            row += '<td><a href="%(CFG_SITE_URL)s/%(CFG_RECORD_URI)s/%(recID)i">%(recID)i</a></td>' % \
+                   {'recID': recID, 'CFG_RECORD_URI': CFG_RECORD_URI, 'CFG_SITE_URL': CFG_SITE_URL}
             for field in ot:
                 row += '<td>' + \
                        ot_sep.join(bibformat_utils.get_all_fieldvalues(recID, field)) + \
