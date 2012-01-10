@@ -741,6 +741,28 @@ class Collection:
                     # add this reclist ``for real'' only if it is public
                     reclist.union_update(coll_reclist)
                 reclist_with_nonpublic_subcolls.union_update(coll_reclist_with_nonpublic_subcolls)
+        elif self.dbquery and self.get_sons():
+            # A - collection does not have dbquery, so query recursively all its sons
+            #     that are either non-restricted or that have the same restriction rules
+            for coll in self.get_sons():
+                coll_reclist, coll_reclist_with_nonpublic_subcolls = coll.calculate_reclist()
+                if ((coll.restricted_p() is None) or
+                    (coll.restricted_p() == self.restricted_p())):
+                    # add this reclist ``for real'' only if it is publicf
+                    reclist.union_update(coll_reclist)
+                reclist_with_nonpublic_subcolls.union_update(coll_reclist_with_nonpublic_subcolls)
+
+            # B - collection does have dbquery, so compute it:
+            #     (note: explicitly remove DELETED records)
+            reclist_self = None
+            if CFG_CERN_SITE:
+                reclist_self = search_pattern_parenthesised(None, self.dbquery + \
+                                         ' -980__:"DELETED" -980__:"DUMMY"')
+            else:
+                reclist_self = search_pattern_parenthesised(None, self.dbquery + ' -980__:"DELETED"')
+            reclist.union_update(reclist_self)
+            self_reclist_with_nonpublic_subcolls = copy.deepcopy(reclist_self)
+            reclist_with_nonpublic_subcolls.union_update(self_reclist_with_nonpublic_subcolls)
         else:
             # B - collection does have dbquery, so compute it:
             #     (note: explicitly remove DELETED records)
