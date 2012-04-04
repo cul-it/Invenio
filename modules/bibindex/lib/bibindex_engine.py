@@ -30,6 +30,10 @@ import time
 import urllib2
 import logging
 
+import datetime
+import dateutil.parser
+import pprint
+
 from invenio.config import \
      CFG_BIBINDEX_CHARS_ALPHANUMERIC_SEPARATORS, \
      CFG_BIBINDEX_CHARS_PUNCTUATION, \
@@ -42,7 +46,8 @@ from invenio.config import \
      CFG_CERN_SITE, CFG_INSPIRE_SITE, \
      CFG_BIBINDEX_PERFORM_OCR_ON_DOCNAMES, \
      CFG_BIBINDEX_SPLASH_PAGES, \
-     CFG_SOLR_URL
+     CFG_SOLR_URL, \
+     CFG_ARXIV_HISTORY_STANDARD_FORM, CFG_ARXIV_HISTORY_TAG
 from invenio.websubmit_config import CFG_WEBSUBMIT_BEST_FORMATS_TO_EXTRACT_TEXT_FROM
 from invenio.bibindex_engine_config import CFG_MAX_MYSQL_THREADS, \
     CFG_MYSQL_THREAD_TIMEOUT, \
@@ -98,6 +103,8 @@ nb_char_in_line = 50  # for verbose pretty printing
 chunksize = 1000 # default size of chunks that the records will be treated by
 base_process_size = 4500 # process base size
 _last_word_table = None
+_new_recent_cache = {}
+_build_cache = 0
 
 def list_union(list1, list2):
     "Returns union of the two lists."
@@ -207,6 +214,95 @@ def get_words_from_journal_tag(recID, tag):
         else:
             lwords.append(pubinfo)
     # return list of words and pubinfos:
+    return lwords
+
+def get_words_from_arxiv_history_tag(recID, tag):
+    """
+    Special procedure to extract words from arXiv tags.  Joins
+    title/volume/year/page into a standard form that is also used for
+    citations.
+    """
+    
+    global _new_recent_cache, _build_cache
+    C_INDEX = 1
+    D_INDEX = 0
+    RECENT_WINDOW = 5
+    acceptable_i_list = ['new', 'replace', 'cross']
+    recent_i_list = ['new', 'cross']
+    
+    # get all journal tags/subfields:
+    bibXXx = "bib" + tag[0] + tag[1] + "x"
+    bibrec_bibXXx = "bibrec_" + bibXXx
+    query = """SELECT bb.field_number,b.tag,b.value FROM %s AS b, %s AS bb
+                WHERE bb.id_bibrec=%%s
+                  AND bb.id_bibxxx=b.id AND tag LIKE %%s""" % (bibXXx, bibrec_bibXXx)
+    res = run_sql(query, (recID, tag))
+    # construct journal pubinfo:
+    dpubinfos = {}
+    i_field = ''
+    for row in res:
+        nb_instance, subfield, value = row
+        if subfield.endswith("i"):
+            # we don't need to index 950__i as we don't show new or others separately
+            i_field = value
+            pass
+        if dpubinfos.has_key(nb_instance):
+            dpubinfos[nb_instance][subfield] = value
+        else:
+            dpubinfos[nb_instance] = {subfield: value}
+    # construct standard format:
+    lwords = []
+    for dpubinfo in dpubinfos.values():
+        pubinfo = CFG_ARXIV_HISTORY_STANDARD_FORM
+        this_date = ''
+        this_collection = ''
+        for tag,val in dpubinfo.items():
+            pubinfo = pubinfo.replace(tag,val)
+        
+#        if CFG_ARXIV_HISTORY_TAG[:-1] in pubinfo:
+#            # some subfield was missing, do nothing
+#            pass
+#        else:
+#            lwords.append(pubinfo)
+        
+        pi_list = pubinfo.split(' ')
+        this_collection = pi_list[C_INDEX]
+        this_date = pi_list[D_INDEX]
+        
+        if i_field not in acceptable_i_list:
+            pass
+        elif _build_cache:
+            if this_collection not in _new_recent_cache:
+                _new_recent_cache[this_collection] = {}
+                _new_recent_cache[this_collection]['date'] = this_date
+                _new_recent_cache[this_collection]['new_count'] = 1
+                _new_recent_cache[this_collection]['recent_count'] = 1
+                _new_recent_cache[this_collection]['i_field'] = i_field
+            elif this_date > _new_recent_cache[this_collection]['date']:
+                _new_recent_cache[this_collection]['date'] = this_date
+                _new_recent_cache[this_collection]['new_count'] = 1
+                _new_recent_cache[this_collection]['recent_count'] = 1
+                _new_recent_cache[this_collection]['i_field'] = i_field
+            elif this_date == _new_recent_cache[this_collection]['date']:
+                _new_recent_cache[this_collection]['new_count'] += 1
+                _new_recent_cache[this_collection]['recent_count'] += 1
+            else:
+                this_date_obj = dateutil.parser.parse(this_date).date()
+                cached_date_obj = dateutil.parser.parse(_new_recent_cache[this_collection]['date']).date()
+                t_diff = cached_date_obj - this_date_obj
+                if t_diff.days < RECENT_WINDOW:
+                    _new_recent_cache[this_collection]['recent_count'] += 1
+        else:
+            if this_date == _new_recent_cache[this_collection]['date']:
+                lwords.append('new ' + this_collection)
+                lwords.append('recent ' + this_collection)
+            else:
+                this_date_obj = dateutil.parser.parse(this_date).date()
+                cached_date_obj = dateutil.parser.parse(_new_recent_cache[this_collection]['date']).date()
+                t_diff = cached_date_obj - this_date_obj
+                if t_diff.days < RECENT_WINDOW:
+                    lwords.append('recent ' + this_collection)
+                
     return lwords
 
 def get_field_count(recID, tags):
@@ -1095,6 +1191,12 @@ class WordTable:
                 if not wlist.has_key(recID):
                     wlist[recID] = []
                 wlist[recID] = list_union(new_words, wlist[recID])
+        elif self.fields_to_index == [CFG_ARXIV_HISTORY_TAG]:
+            for recID in range(recID1, recID2 + 1):
+                new_words = get_words_from_arxiv_history_tag(recID, self.fields_to_index[0])
+                if not wlist.has_key(recID):
+                    wlist[recID] = []
+                wlist[recID] = list_union(new_words, wlist[recID])
         elif self.index_name in ('authorcount',):
             # FIXME: quick hack for the authorcount index; we have to
             # count the number of author fields only
@@ -1415,6 +1517,86 @@ class WordTable:
             write_message("EMERGENCY: " + error_message, stream=sys.stderr)
             raise StandardError, error_message
 
+    def get_new_recent_recIDs(self, recIDs):
+        """Fetches records which id in the recIDs range list and adds
+        them to the wordTable.  The recIDs range list is of the form:
+        [[i1_low,i1_high],[i2_low,i2_high], ..., [iN_low,iN_high]].
+        """
+        global chunksize, _last_word_table, _new_recent_cache
+        
+        DATE_INDEX = 0
+        COLLECTION_INDEX = 1
+        wlist = {}
+
+        time_started = time.time() # will measure profile time
+        for arange in recIDs:
+            i_low = arange[0]
+            while i_low <= arange[1]:
+                if CFG_CHECK_MYSQL_THREADS:
+                    kill_sleepy_mysql_threads()
+                if self.fields_to_index == [CFG_ARXIV_HISTORY_TAG]:
+                    for recID in range(recID1, recID2 + 1):
+                        new_words = get_words_from_arxiv_history_tag(recID, self.fields_to_index[0])
+                        data = record.split(' ')
+                        if not data[COLLECTION_INDEX] in _new_recent_cache:
+                            _new_recent_cache[data[COLLECTION_INDEX]] = {}
+                            _new_recent_cache[data[COLLECTION_INDEX]]['latest'] = data[DATE_INDEX]
+                        if data[DATE_INDEX] > _new_recent_cache[data[COLLECTION_INDEX]]['latest']:
+                            _new_recent_cache[data[COLLECTION_INDEX]]['latest'] = data[DATE_INDEX]
+                i_low += 1
+    
+    def get_new_recent_recIDs_by_date(self, dates):
+        """Add records that were modified between DATES[0] and DATES[1].
+           If DATES is not set, then add records that were modified since
+           the last update of the index.
+        """
+        
+        if not dates:
+            table_id = self.tablename[-3:-1]
+            query = """SELECT last_updated FROM idxINDEX WHERE id=%s"""
+            res = run_sql(query, (table_id,))
+            if not res:
+                return
+            if not res[0][0]:
+                dates = ("0000-00-00", None)
+            else:
+                dates = (res[0][0], None)
+        if dates[1] is None:
+            res = intbitset(run_sql("""SELECT b.id FROM bibrec AS b
+                              WHERE b.modification_date >= %s""",
+                          (dates[0],)))
+            if self.is_fulltext_index:
+                res |= intbitset(run_sql("""SELECT id_bibrec FROM bibrec_bibdoc JOIN bibdoc ON id_bibdoc=id WHERE text_extraction_date <= modification_date AND modification_date >= %s AND status<>'DELETED'""", (dates[0],)))
+        elif dates[0] is None:
+            res = intbitset(run_sql("""SELECT b.id FROM bibrec AS b
+                              WHERE b.modification_date <= %s""",
+                          (dates[1],)))
+            if self.is_fulltext_index:
+                res |= intbitset(run_sql("""SELECT id_bibrec FROM bibrec_bibdoc JOIN bibdoc ON id_bibdoc=id WHERE text_extraction_date <= modification_date AND modification_date <= %s AND status<>'DELETED'""", (dates[1],)))
+        else:
+            res = intbitset(run_sql("""SELECT b.id FROM bibrec AS b
+                              WHERE b.modification_date >= %s AND
+                                    b.modification_date <= %s""",
+                          (dates[0], dates[1])))
+            if self.is_fulltext_index:
+                res |= intbitset(run_sql("""SELECT id_bibrec FROM bibrec_bibdoc JOIN bibdoc ON id_bibdoc=id WHERE text_extraction_date <= modification_date AND modification_date >= %s AND modification_date <= %s AND status<>'DELETED'""", (dates[0], dates[1],)))
+        alist = create_range_list(list(res))
+        if not alist:
+            write_message("No new records added. %s is up to date" % self.tablename)
+        else:
+            self.get_new_recent_recIDs(alist)
+        # special case of author indexes where we need to re-index
+        # those records that were affected by changed BibAuthorID
+        # attributions:
+        if self.index_name in ('author', 'firstauthor', 'exactauthor', 'exactfirstauthor'):
+            from invenio.bibauthorid_personid_maintenance import get_recids_affected_since
+            # dates[1] is ignored, since BibAuthorID API does not offer upper limit search
+            alist = create_range_list(get_recids_affected_since(dates[0]))
+            if not alist:
+                write_message("No new records added by author canonical IDs. %s is up to date" % self.tablename)
+            else:
+                self.get_new_recent_recIDs(alist)
+
 def main():
     """Main that construct all the bibtask."""
     task_init(authorization_action='runbibindex',
@@ -1520,7 +1702,7 @@ def task_run_core():
     The task prints Fibonacci numbers for up to NUM on the stdout, and some
     messages on stderr.
     Return 1 in case of success and 0 in case of failure."""
-    global _last_word_table
+    global _last_word_table, _new_recent_cache, _build_cache
 
     if task_get_option("cmd") == "check":
         wordTables = get_word_tables(task_get_option("windex"))
@@ -1577,6 +1759,88 @@ def task_run_core():
             task_sleep_now_if_required(can_stop_too=True)
         _last_word_table = None
         return True
+    
+    # Let's create cache!
+    _build_cache = 1
+    wordTables = get_word_tables(task_get_option("windex"))
+    for index_id, index_name, index_tags in wordTables:
+        is_fulltext_index = index_name == 'fulltext'
+        reindex_prefix = ""
+        if task_get_option("reindex"):
+            reindex_prefix = "tmp_"
+            init_temporary_reindex_tables(index_id, reindex_prefix)
+        if index_name == 'year' and CFG_INSPIRE_SITE:
+            fnc_get_words_from_phrase = get_words_from_date_tag
+        elif index_name in ('author', 'firstauthor') and \
+                 CFG_BIBINDEX_AUTHOR_WORD_INDEX_EXCLUDE_FIRST_NAMES:
+            fnc_get_words_from_phrase = get_author_family_name_words_from_phrase
+        else:
+            fnc_get_words_from_phrase = get_words_from_phrase
+        wordTable = WordTable(index_name=index_name,
+                              index_id=index_id,
+                              fields_to_index=index_tags,
+                              table_name_pattern=reindex_prefix + 'idxWORD%02dF',
+                              default_get_words_fnc=fnc_get_words_from_phrase,
+                              tag_to_words_fnc_map={'8564_u': get_words_from_fulltext},
+                              is_fulltext_index=is_fulltext_index,
+                              wash_index_terms=50)
+        
+        _last_word_table = wordTable
+        wordTable.report_on_table_consistency()
+        try:
+            if task_get_option("cmd") == "del":
+                if task_get_option("id"):
+                    wordTable.del_recIDs(task_get_option("id"))
+                    task_sleep_now_if_required(can_stop_too=True)
+                elif task_get_option("collection"):
+                    l_of_colls = task_get_option("collection").split(",")
+                    recIDs = perform_request_search(c=l_of_colls)
+                    recIDs_range = []
+                    for recID in recIDs:
+                        recIDs_range.append([recID, recID])
+                    wordTable.del_recIDs(recIDs_range)
+                    task_sleep_now_if_required(can_stop_too=True)
+                else:
+                    error_message = "Missing IDs of records to delete from " \
+                            "index %s." % wordTable.tablename
+                    write_message(error_message, stream=sys.stderr)
+                    raise StandardError, error_message
+            elif task_get_option("cmd") == "add":
+                if task_get_option("id"):
+                    wordTable.add_recIDs(task_get_option("id"), task_get_option("flush"))
+                    task_sleep_now_if_required(can_stop_too=True)
+                elif task_get_option("collection"):
+                    l_of_colls = task_get_option("collection").split(",")
+                    recIDs = perform_request_search(c=l_of_colls)
+                    recIDs_range = []
+                    for recID in recIDs:
+                        recIDs_range.append([recID, recID])
+                    wordTable.add_recIDs(recIDs_range, task_get_option("flush"))
+                    task_sleep_now_if_required(can_stop_too=True)
+                else:
+                    wordTable.add_recIDs_by_date(task_get_option("modified"), task_get_option("flush"))
+                    ## here we used to update last_updated info, if run via automatic mode;
+                    ## but do not update here anymore, since idxPHRASE will be acted upon later
+                    task_sleep_now_if_required(can_stop_too=True)
+            elif task_get_option("cmd") == "repair":
+                wordTable.repair(task_get_option("flush"))
+                task_sleep_now_if_required(can_stop_too=True)
+            else:
+                error_message = "Invalid command found processing %s" % \
+                    wordTable.tablename
+                write_message(error_message, stream=sys.stderr)
+                raise StandardError, error_message
+        except StandardError, e:
+            write_message("Exception caught: %s" % e, sys.stderr)
+            register_exception(alert_admin=True)
+            task_update_status("ERROR")
+            if _last_word_table:
+                _last_word_table.put_into_db()
+            sys.exit(1)
+
+        wordTable.report_on_table_consistency()
+        task_sleep_now_if_required(can_stop_too=True)
+    _build_cache = 0
 
     # Let's work on single words!
     wordTables = get_word_tables(task_get_option("windex"))
@@ -1601,6 +1865,7 @@ def task_run_core():
                               tag_to_words_fnc_map={'8564_u': get_words_from_fulltext},
                               is_fulltext_index=is_fulltext_index,
                               wash_index_terms=50)
+        
         _last_word_table = wordTable
         wordTable.report_on_table_consistency()
         try:
@@ -1801,8 +2066,9 @@ def task_run_core():
         task_sleep_now_if_required(can_stop_too=True)
 
     _last_word_table = None
+    _new_recent_cache = None
+    
     return True
-
 
 ## import optional modules:
 try:
