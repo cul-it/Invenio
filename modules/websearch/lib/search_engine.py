@@ -3941,6 +3941,45 @@ def print_records(req, recIDs, jrec=1, rg=10, format='hb', ot='', ln=CFG_SITE_LA
                     ln = ln,
                     display_add_to_basket = display_add_to_basket))
 
+            elif format.startswith("hl"):
+                # HTML brief format:
+
+                display_add_to_basket = True
+                if user_info:
+                    if user_info['email'] == 'guest':
+                        if CFG_ACCESS_CONTROL_LEVEL_ACCOUNTS > 4:
+                            display_add_to_basket = False
+                    else:
+                        if not user_info['precached_usebaskets']:
+                            display_add_to_basket = False
+                req.write(websearch_templates.tmpl_record_format_htmllist_header(
+                    ln = ln))
+                for irec in range(irec_max, irec_min, -1):
+                    row_number = jrec+irec_max-irec
+                    recid = recIDs[irec]
+                    if relevances and relevances[irec]:
+                        relevance = relevances[irec]
+                    else:
+                        relevance = ''
+                    record = print_record(recIDs[irec], format, ot, ln, search_pattern=search_pattern,
+                                                  user_info=user_info, verbose=verbose, sf=sf, so=so, sp=sp, rm=rm)
+
+                    req.write(websearch_templates.tmpl_record_format_htmllist_body(
+                        ln = ln,
+                        recid = recid,
+                        row_number = row_number,
+                        relevance = relevance,
+                        record = record,
+                        relevances_prologue = relevances_prologue,
+                        relevances_epilogue = relevances_epilogue,
+                        display_add_to_basket = display_add_to_basket
+                        ))
+
+                req.write(websearch_templates.tmpl_record_format_htmllist_footer(
+                    ln = ln,
+                    display_add_to_basket = display_add_to_basket))
+
+
             elif format.startswith("hd"):
                 # HTML detailed format:
                 for irec in range(irec_max, irec_min, -1):

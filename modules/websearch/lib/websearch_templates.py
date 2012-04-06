@@ -2917,6 +2917,115 @@ class Template:
 
         return out
 
+
+    def tmpl_record_format_htmllist_header(self, ln):
+        """Returns the header of the search results list when output
+        is html list. Note that this function is called for each collection
+        results when 'split by collection' is enabled.
+
+        See also: tmpl_record_format_htmllist_footer,
+                  tmpl_record_format_htmllist_body
+
+        Parameters:
+
+          - 'ln' *string* - The language to display
+
+        """
+
+        # load the right message language
+        _ = gettext_set_language(ln)
+
+        out = """
+              <form action="%(siteurl)s/yourbaskets/add" method="post">
+              <table>
+              """ % {
+                'siteurl' : CFG_SITE_URL,
+              }
+
+        return out
+
+    def tmpl_record_format_htmllist_footer(self, ln, display_add_to_basket=True):
+        """Returns the footer of the search results list when output
+        is html list. Note that this function is called for each collection
+        results when 'split by collection' is enabled.
+
+        See also: tmpl_record_format_htmllist_header(..),
+                  tmpl_record_format_htmllist_body(..)
+
+        Parameters:
+
+          - 'ln' *string* - The language to display
+          - 'display_add_to_basket' *bool* - whether to display Add-to-basket button
+        """
+
+        # load the right message language
+        _ = gettext_set_language(ln)
+
+        out = """</table>
+               <br />
+               <input type="hidden" name="colid" value="0" />
+               %(add_to_basket)s
+               </form>""" % {
+               'add_to_basket': display_add_to_basket and """<input class="formbutton" type="submit" name="action" value="%s" />""" % _("Add to basket") or "",
+                 }
+
+        return out
+
+    def tmpl_record_format_htmllist_body(self, ln, recid,
+                                          row_number, relevance,
+                                          record, relevances_prologue,
+                                          relevances_epilogue,
+                                          display_add_to_basket=True):
+        """Returns the html list format of one record. Used in the
+        search results list for each record.
+
+        See also: tmpl_record_format_htmllist_header(..),
+                  tmpl_record_format_htmllist_footer(..)
+
+        Parameters:
+
+          - 'ln' *string* - The language to display
+
+          - 'row_number' *int* - The position of this record in the list
+
+          - 'recid' *int* - The recID
+
+          - 'relevance' *string* - The relevance of the record
+
+          - 'record' *string* - The formatted record
+
+          - 'relevances_prologue' *string* - HTML code to prepend the relevance indicator
+
+          - 'relevances_epilogue' *string* - HTML code to append to the relevance indicator (used mostly for formatting)
+
+        """
+
+        # load the right message language
+        _ = gettext_set_language(ln)
+
+        checkbox_for_baskets = """<input name="recid" type="checkbox" value="%(recid)s" />""" % \
+                               {'recid': recid, }
+        if not display_add_to_basket:
+            checkbox_for_baskets = ''
+        out = """
+                <tr><td valign="top" align="right" style="white-space: nowrap;">
+                    %(checkbox_for_baskets)s
+                    <abbr class="unapi-id" title="%(recid)s"></abbr>
+
+                %(number)s.
+               """ % {'recid': recid,
+                      'number': row_number,
+                      'checkbox_for_baskets': checkbox_for_baskets}
+        if relevance:
+            out += """<br /><div class="rankscoreinfo"><a title="rank score">%(prologue)s%(relevance)s%(epilogue)s</a></div>""" % {
+                'prologue' : relevances_prologue,
+                'epilogue' : relevances_epilogue,
+                'relevance' : relevance
+                }
+        out += """</td><td valign="top">%s</td></tr>""" % record
+
+        return out
+
     def tmpl_print_results_overview(self, ln, results_final_nb_total, cpu_time, results_final_nb, colls, ec, hosted_colls_potential_results_p=False):
         """Prints results overview box with links to particular collections below.
 
