@@ -33,6 +33,7 @@ import logging
 import datetime
 import dateutil.parser
 import pprint
+from pprint import pformat
 
 from invenio.config import \
      CFG_BIBINDEX_CHARS_ALPHANUMERIC_SEPARATORS, \
@@ -226,9 +227,8 @@ def get_words_from_arxiv_history_tag(recID, tag):
     global _new_recent_cache, _build_cache
     C_INDEX = 1
     D_INDEX = 0
-    RECENT_WINDOW = 5
-    acceptable_i_list = ['new', 'replace', 'cross']
-    recent_i_list = ['new', 'cross']
+    acceptable_new_i_list = ['new', 'replace', 'cross']
+    acceptable_recent_i_list = ['new', 'cross']
     
     # get all journal tags/subfields:
     bibXXx = "bib" + tag[0] + tag[1] + "x"
@@ -245,64 +245,44 @@ def get_words_from_arxiv_history_tag(recID, tag):
         if subfield.endswith("i"):
             # we don't need to index 950__i as we don't show new or others separately
             i_field = value
-            pass
+            continue
         if dpubinfos.has_key(nb_instance):
-            dpubinfos[nb_instance][subfield] = value
+            dpubinfos[nb_instance]['i_field'] = i_field
+            dpubinfos[nb_instance]['data'][subfield] = value
         else:
-            dpubinfos[nb_instance] = {subfield: value}
+            dpubinfos[nb_instance] = {'data': { subfield: value }, 'i_field': i_field }
+    
     # construct standard format:
     lwords = []
-    for dpubinfo in dpubinfos.values():
+    for dpubinfo_key in dpubinfos.keys():
         pubinfo = CFG_ARXIV_HISTORY_STANDARD_FORM
         this_date = ''
         this_collection = ''
-        for tag,val in dpubinfo.items():
+        i_field = dpubinfos[dpubinfo_key]['i_field']
+        for tag,val in dpubinfos[dpubinfo_key]['data'].items():
             pubinfo = pubinfo.replace(tag,val)
-        
-#        if CFG_ARXIV_HISTORY_TAG[:-1] in pubinfo:
-#            # some subfield was missing, do nothing
-#            pass
-#        else:
-#            lwords.append(pubinfo)
         
         pi_list = pubinfo.split(' ')
         this_collection = pi_list[C_INDEX]
         this_date = pi_list[D_INDEX]
         
-        if i_field not in acceptable_i_list:
-            pass
-        elif _build_cache:
+        if i_field in acceptable_new_i_list and _build_cache:
             if this_collection not in _new_recent_cache:
                 _new_recent_cache[this_collection] = {}
-                _new_recent_cache[this_collection]['date'] = this_date
-                _new_recent_cache[this_collection]['new_count'] = 1
-                _new_recent_cache[this_collection]['recent_count'] = 1
-                _new_recent_cache[this_collection]['i_field'] = i_field
-            elif this_date > _new_recent_cache[this_collection]['date']:
-                _new_recent_cache[this_collection]['date'] = this_date
-                _new_recent_cache[this_collection]['new_count'] = 1
-                _new_recent_cache[this_collection]['recent_count'] = 1
-                _new_recent_cache[this_collection]['i_field'] = i_field
-            elif this_date == _new_recent_cache[this_collection]['date']:
-                _new_recent_cache[this_collection]['new_count'] += 1
-                _new_recent_cache[this_collection]['recent_count'] += 1
-            else:
-                this_date_obj = dateutil.parser.parse(this_date).date()
-                cached_date_obj = dateutil.parser.parse(_new_recent_cache[this_collection]['date']).date()
-                t_diff = cached_date_obj - this_date_obj
-                if t_diff.days < RECENT_WINDOW:
-                    _new_recent_cache[this_collection]['recent_count'] += 1
+                _new_recent_cache[this_collection]['date'] = [this_date]
+            elif this_date not in _new_recent_cache[this_collection]['date']:
+                _new_recent_cache[this_collection]['date'].append(this_date)
+            _new_recent_cache[this_collection]['date'].sort()
+            _new_recent_cache[this_collection]['date'].reverse()
         else:
-            if this_date == _new_recent_cache[this_collection]['date']:
-                lwords.append('new ' + this_collection)
-                lwords.append('recent ' + this_collection)
-            else:
-                this_date_obj = dateutil.parser.parse(this_date).date()
-                cached_date_obj = dateutil.parser.parse(_new_recent_cache[this_collection]['date']).date()
-                t_diff = cached_date_obj - this_date_obj
-                if t_diff.days < RECENT_WINDOW:
-                    lwords.append('recent ' + this_collection)
-                
+                if i_field in acceptable_new_i_list and this_date == _new_recent_cache[this_collection]['date'][0]:
+                    if 'new ' + this_collection not in lwords:
+                        lwords.append('new ' + this_collection)
+
+                if i_field in acceptable_recent_i_list and this_date in _new_recent_cache[this_collection]['date'][0:5]:
+                    if 'recent ' + this_collection not in lwords:
+                        lwords.append('recent ' + this_collection)
+    
     return lwords
 
 def get_field_count(recID, tags):
