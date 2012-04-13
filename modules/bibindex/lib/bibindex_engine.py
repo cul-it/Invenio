@@ -252,6 +252,11 @@ def get_words_from_arxiv_history_tag(recID, tag):
         else:
             dpubinfos[nb_instance] = {'data': { subfield: value }, 'i_field': i_field }
     
+    query_2 = "SELECT b.value FROM bib97x AS b, bibrec_bib97x AS bb WHERE bb.id_bibrec = %s AND bb.id_bibxxx=b.id and b.tag = %s"
+    res2 = run_sql(query_2, (recID, '970__a'))
+    paper_id = res2[0][0]
+    paper_id = paper_id[0:4]
+    
     # construct standard format:
     lwords = []
     for dpubinfo_key in dpubinfos.keys():
@@ -282,6 +287,16 @@ def get_words_from_arxiv_history_tag(recID, tag):
                 if i_field in acceptable_recent_i_list and this_date in _new_recent_cache[this_collection]['date'][0:5]:
                     if 'recent ' + this_collection not in lwords:
                         lwords.append('recent ' + this_collection)
+                        
+                if i_field in acceptable_recent_i_list:
+                    today = datetime.datetime.now()
+                    current = today.strftime("%y%m")
+                    if paper_id == current and "current " + this_collection not in lwords:
+                        lwords.append("current " + this_collection)
+                    if paper_id + ' ' + this_collection not in lwords:
+                        lwords.append(paper_id + ' ' + this_collection)
+                    if paper_id[0:2] + ' ' + this_collection not in lwords:
+                        lwords.append(paper_id[0:2] + ' ' + this_collection)
     
     return lwords
 
