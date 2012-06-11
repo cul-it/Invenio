@@ -31,7 +31,7 @@ from invenio.webinterface_handler import create_handler
 from invenio.errorlib import register_exception
 from invenio.webinterface_handler import WebInterfaceDirectory
 from invenio import webinterface_handler_config as apache
-from invenio.config import CFG_DEVEL_SITE, CFG_OPENAIRE_SITE
+from invenio.config import CFG_DEVEL_SITE, CFG_OPENAIRE_SITE, CFG_ARXIV_SITE
 
 class WebInterfaceDumbPages(WebInterfaceDirectory):
     """This class implements a dumb interface to use as a fallback in case of
@@ -230,6 +230,15 @@ if CFG_DEVEL_SITE:
 else:
     test_exports = []
 
+if CFG_ARXIV_SITE:
+    try:
+        from invenio.arxivlist_webinterface import WebInterfaceListPages
+    except:
+        register_exception(alert_admin=True, subject='EMERGENCY')
+        WebInterfaceListPages = WebInterfaceDumbPages
+    arxiv_exports = ['list']
+else:
+    arxiv_exports = []
 
 class WebInterfaceInvenio(WebInterfaceSearchInterfacePages):
     """ The global URL layout is composed of the search API plus all
@@ -259,7 +268,7 @@ class WebInterfaceInvenio(WebInterfaceSearchInterfacePages):
         'batchuploader',
         'person',
         'bibsword'
-        ] + test_exports + openaire_exports
+        ] + arxiv_exports + test_exports + openaire_exports
 
     def __init__(self):
         self.getfile = websubmit_legacy_getfile
@@ -267,6 +276,8 @@ class WebInterfaceInvenio(WebInterfaceSearchInterfacePages):
             self.httptest = WebInterfaceHTTPTestPages()
         if CFG_OPENAIRE_SITE:
             self.deposit = WebInterfaceOpenAIREDepositPages()
+        if CFG_ARXIV_SITE:
+            self.list = WebInterfaceListPages()
 
     author = WebInterfaceAuthorPages()
     submit = WebInterfaceSubmitPages()
