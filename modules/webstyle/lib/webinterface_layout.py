@@ -231,12 +231,20 @@ else:
     test_exports = []
 
 if CFG_ARXIV_SITE:
+    arxiv_exports = []
     try:
         from invenio.arxivlist_webinterface import WebInterfaceListPages
+        arxiv_exports.append('list')
     except:
         register_exception(alert_admin=True, subject='EMERGENCY')
         WebInterfaceListPages = WebInterfaceDumbPages
-    arxiv_exports = ['list']
+    
+    try:
+        from invenio.arxivcatchup_webinterface import WebInterfaceCatchupPages
+        arxiv_exports.append('catchup')
+    except:
+        register_exception(alert_admin=True, subject='EMERGENCY')
+        WebInterfaceCatchupPages = WebInterfaceDumbPages
 else:
     arxiv_exports = []
 
@@ -278,6 +286,7 @@ class WebInterfaceInvenio(WebInterfaceSearchInterfacePages):
             self.deposit = WebInterfaceOpenAIREDepositPages()
         if CFG_ARXIV_SITE:
             self.list = WebInterfaceListPages()
+            self.catchup = WebInterfaceCatchupPages()
 
     author = WebInterfaceAuthorPages()
     submit = WebInterfaceSubmitPages()
